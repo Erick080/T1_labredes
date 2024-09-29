@@ -11,24 +11,32 @@ public class ClienteTCP implements Cliente {
  
         String hostname = args[0];
         int port = Integer.parseInt(args[1]);
-
         Scanner sc = new Scanner(System.in);
         try (Socket socket = new Socket(hostname, port)) {
- 
+            OutputStream output = socket.getOutputStream();
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())); 
+            PrintWriter writer = new PrintWriter(output, true);
+
+            // thread para receber msgs
+            new Thread(() -> {
+                try {
+                    String resposta;
+                    while ((resposta = in.readLine()) != null) {
+                        System.out.println(resposta);
+                        if (resposta.startsWith("[SERVER]: Ate a proxima,")){
+                            System.exit(1);
+                        }
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }).start();
+
+            // le input do usuario
             while (true){
-                OutputStream output = socket.getOutputStream();
-                PrintWriter writer = new PrintWriter(output, true);
-     
                 String line = sc.nextLine();
     
                 writer.println(line);
-                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())); 
-                
-                String resposta = in.readLine();
-                System.out.println("Resposta recebida -> " + resposta);
-
-                if (line.trim().equalsIgnoreCase("EXIT"))
-                    break;
             } 
  
         } catch (UnknownHostException ex) {
