@@ -5,7 +5,7 @@ import java.io.*;
 public class ClienteTCP implements Cliente {
     public static void main(String[] args) {
         if (args.length < 2) {
-            System.out.println("Usage: java TCPClient <server_ip> <port>");
+            System.out.println("Usage: java ClienteTCP <server_ip> <port>");
             return;
         }
  
