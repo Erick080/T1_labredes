@@ -3,7 +3,7 @@ import java.util.Scanner;
 import java.io.*;
 
 public class ClienteTCP implements Cliente {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         if (args.length < 2) {
             System.out.println("Usage: java ClienteTCP <server_ip> <port>");
             return;
@@ -12,6 +12,7 @@ public class ClienteTCP implements Cliente {
         String hostname = args[0];
         int port = Integer.parseInt(args[1]);
         Scanner sc = new Scanner(System.in);
+
         try (Socket socket = new Socket(hostname, port)) {
             OutputStream output = socket.getOutputStream();
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())); 
@@ -35,8 +36,23 @@ public class ClienteTCP implements Cliente {
             // le input do usuario
             while (true){
                 String line = sc.nextLine();
-    
-                writer.println(line);
+
+                if(line.startsWith("/FILE")){
+                    File arquivo = new File(line.split(" ")[1]);
+                    byte[] bytes = new byte[8192];
+                    writer.println(line);
+                    
+                    Thread.sleep(1000); // espera 1 segundo para que o server se prepare para ler a stream
+                    InputStream stream_arquivo = new FileInputStream(arquivo);
+                    int count;
+                    while ((count = stream_arquivo.read(bytes)) > 0) {
+                        output.write(bytes, 0, count);
+                    }
+                    System.out.println("saiu");
+                    stream_arquivo.close();
+                }
+                else
+                    writer.println(line);
             } 
  
         } catch (UnknownHostException ex) {

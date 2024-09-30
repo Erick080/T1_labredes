@@ -44,6 +44,22 @@ public class ServerTCP {
             
         }
 
+        public void send_file(Socket destino, String nome_arquivo) throws IOException{
+            FileOutputStream stream_arquivo_criado = new FileOutputStream("arquivo_teste_recebido");
+            InputStream stream_bytes_recebidos = socket_cliente.getInputStream(); //pode dar ruim
+            //stream_bytes_recebidos.read();
+            byte[] bytes = new byte[8192];
+            int count;
+            //while ((count = stream_bytes_recebidos.read(bytes)) > 0) {
+                count = stream_bytes_recebidos.read(bytes);
+                stream_arquivo_criado.write(bytes, 0, count);
+            //}
+            stream_arquivo_criado.close();
+            // avisa destinatario que recebeu arquivo
+            String message = "enviou um arquivo: " + nome_arquivo;
+            send_message(destino, message, false); 
+        }
+
         public void run(){
             System.out.println("New client connected: " + socket_cliente.getRemoteSocketAddress());
             try {
@@ -68,6 +84,12 @@ public class ServerTCP {
                             System.out.println("destinatario_socket = " + destinatario_socket.getRemoteSocketAddress());
                             send_message(destinatario_socket, message, false);
                         }
+                    }
+                    else if (line.startsWith("/FILE")){
+                        String path = line.split(" ")[1];
+                        String destinatario = line.split(" ")[2];
+                        Socket destinatario_socket = get_user_socket(destinatario);
+                        send_file(destinatario_socket, path);
                     }
                     else if(line.startsWith("/QUIT")){
                         System.out.println("Desconectando " + nickname);
