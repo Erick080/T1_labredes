@@ -1,61 +1,50 @@
-// Cliente UDP
-// - Le uma linha do teclado
-// - Envia o pacote (linha digitada) ao servidor UDP
+import java.net.*;
+import java.util.Scanner;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
+public class ClienteUDP {
+    public static void main(String[] args) {
+        if (args.length != 2) {
+            System.out.println("Uso: java UDPclient <endereco_servidor> <porta_servidor>");
+            return;
+        }
+        
+        String strServerAddress = args[0];
+        int serverPort = Integer.parseInt(args[1]);
 
-public class ClienteUDP implements Cliente {
-   public static void main(String args[]) throws Exception {
-      if (args.length < 2) {
-         System.out.println("Usage: java UDPClient <server_ip> <port>");
-         return;
-      }
+        try (DatagramSocket socket = new DatagramSocket()) {
+            InetAddress serverAddress = InetAddress.getByName(strServerAddress);
 
-      String serverAddr = args[0];
-      int port = Integer.parseInt(args[1]);
+            // Thread para receber mensagens do servidor
+            new Thread(() -> {
+                try {
+                    byte[] buffer = new byte[1024];
+                    while (true) {
+                        DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
+                        socket.receive(receivePacket);
+                        String receiveMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
+                        System.out.println(receiveMessage);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
 
-      // cria o stream do teclado
-      BufferedReader inFromUser = new BufferedReader(new InputStreamReader(System.in));
-
-      // declara socket cliente
-      DatagramSocket clientSocket = new DatagramSocket();
-
-      // obtem endereco IP do servidor a partir de uma string (IP ou nome)
-      InetAddress ipAddress = InetAddress.getByName(serverAddr);
-
-      byte[] sendData = new byte[1024];
-
-      // le uma linha do teclado
-      System.out.print("Digite uma mensagem: ");
-      String sentence = inFromUser.readLine();
-      sendData = sentence.getBytes();
-
-      // cria pacote com o dado, o endereco do server e porta do servidor
-      DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, ipAddress, port);
-
-      // envia o pacote
-      clientSocket.send(sendPacket);
-
-      // ===================================================================
-
-      //resposta do servidor
-      byte[] receiveData = new byte[1024];
-
-      // declara o pacote a ser recebido
-      DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-      clientSocket.receive(receivePacket);
-
-      // obtem a mensagem do servidor
-      String response = new String(receivePacket.getData());
-
-      // imprime a resposta do servidor
-      System.out.println(response);
-
-      // fecha o cliente
-      clientSocket.close();
-   }
+            // Enviar mensagens ao servidor
+            Scanner scanner = new Scanner(System.in);
+            while (true) {
+                String message = scanner.nextLine();
+                byte[] buffer = message.getBytes();
+                DatagramPacket sendPacket = new DatagramPacket(buffer, buffer.length, serverAddress, serverPort);
+                socket.send(sendPacket);
+                if(message.trim().equals("/FIM")) {
+                    System.out.println("Encerrando.");
+                    socket.close();
+                    scanner.close();
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }

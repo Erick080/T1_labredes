@@ -1,67 +1,93 @@
-// Servidor UDP
-// - Recebe um pacote de algum cliente
-// - Separa o dado, o endereco IP e a porta deste cliente
-// - Imprime o mensagem recebida
+import java.net.*;
+import java.util.*;
 
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
+public class ServerUDP {
+    private static List<InetSocketAddress> clients = new ArrayList<>();
+    private static Map<InetSocketAddress, String> userNames = new HashMap<>();
 
-public class ServerUDP implements Server {
-
-   @Override
-    public String get_user_address(String name) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'get_user_address'");
-    }
-
-   public static void main(String args[]) throws Exception {
-         if (args.length < 1) {
-            System.out.println("Usage: java UDPServer <port>");
+    public static void main(String[] args) {
+        if(args.length != 1) {
+            System.out.println("Uso: java UDPserver <porta>");
             return;
-         }
+        }
 
-         int port = Integer.parseInt(args[0]);
+        int porta = Integer.parseInt(args[0]);
 
-         // cria socket do servidor com a porta especificada
-         DatagramSocket serverSocket = new DatagramSocket(port);
+        try(DatagramSocket socket = new DatagramSocket(porta)) {
+            System.out.println("Servidor pronto na porta " + porta);
+            byte[] buffer = new byte[1024];
 
-         while(true) {
-            byte[] receiveData = new byte[1024];
+            while(true) {
+                DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
+                socket.receive(receivePacket);
 
-            // declara o pacote a ser recebido
-            DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+                // Client info
+                InetAddress clinetAddress = receivePacket.getAddress();
+                int clientPort = receivePacket.getPort();
+                InetSocketAddress clientSocketAddress = new InetSocketAddress(clinetAddress, clientPort);
 
-            // recebe o pacote do cliente
-            serverSocket.receive(receivePacket);
+                // Message
+                String command = new String(receivePacket.getData(), 0, receivePacket.getLength());
+                
+                // user registration
+                if(command.startsWith("/REG ")) {
+                    String userName = command.substring(5).trim().split(" ")[0];
+                    userNames.put(clientSocketAddress, userName);
+                    if(!clients.contains(clientSocketAddress)) {
+                        clients.add(clientSocketAddress);
+                    }
+                    System.out.println("Usuário conectado: " + userName + " (" + clientSocketAddress + ")");
+                    continue;
+                }
 
-            // obtem os dados, o endereco IP e a porta do cliente
-            String sentence = new String(receivePacket.getData());
-            InetAddress ipAddress = receivePacket.getAddress();
-            int receivePort = receivePacket.getPort();
+                // Verificar se o cliente já se registrou com um nome de usuário
+                if(command.startsWith("/MSG ")) {
+                    if(!userNames.containsKey(clientSocketAddress)) {
+                        System.out.println("Cliente não registrado tentou enviar uma mensagem.");
+                        continue;
+                    }
 
-            // imprime remetente da mensagem
-            System.out.println("Recebi mensagem de " + ipAddress.getHostAddress() + ":" + receivePort);
-            
-            // imprime a linha recebida do cliente
-            System.out.println("Mensagem recebida: " + sentence);
+                    if(command.substring(5).trim().split(" ").length < 2) {
+                        System.out.println("Mensagem inválida.");
+                        continue;
+                    }
 
-            // Confirmar Recebimento ===========================================
+                    String sender = userNames.get(clientSocketAddress);
+                    String receiver = command.substring(5).trim().split(" ")[0];
+                    String msg = sender + ": " + command.substring(5 + receiver.length()).trim();
+                    System.out.println(receiver + " <- " + msg);
 
-            // cria pacote com o dado, o endereco do server e porta do servidor
-            byte[] sendData = new byte[1024];
-            sendData = ("Recebido").getBytes();
-            DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, ipAddress, receivePort);
-            serverSocket.send(sendPacket);
-
-            // Finaliza o servidor caso a mensagem seja "FIM"
-            if(sentence.trim().toUpperCase().equals("FIM")) {
-               System.out.println("Finalizando.");
-               serverSocket.close();
-               break;
+                    if(receiver.toLowerCase().equals("all")) {
+                        for(InetSocketAddress client : clients) {
+                            if(!client.equals(clientSocketAddress)) {
+                                DatagramPacket sendPacket = new DatagramPacket(
+                                        msg.getBytes(),
+                                        msg.length(),
+                                        client.getAddress(),
+                                        client.getPort()
+                                );
+                                socket.send(sendPacket);
+                            }
+                        }
+                    }
+                    else {
+                        for(InetSocketAddress client : clients) {
+                            if(userNames.get(client).equals(receiver)) {
+                                DatagramPacket sendPacket = new DatagramPacket(
+                                        msg.getBytes(),
+                                        msg.length(),
+                                        client.getAddress(),
+                                        client.getPort()
+                                );
+                                socket.send(sendPacket);
+                                break;
+                            }
+                        }
+                    }
+                }
             }
-         }
-
-         //serverSocket.close();
-      }
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+    }
 }
