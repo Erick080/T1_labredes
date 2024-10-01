@@ -2,10 +2,10 @@ import java.net.*;
 import java.util.Scanner;
 import java.io.*;
 
-public class ClienteTCP implements Cliente {
+public class ClienteTCP {
     public static void main(String[] args) throws InterruptedException {
         if (args.length < 2) {
-            System.out.println("Usage: java ClienteTCP <server_ip> <port>");
+            System.out.println("Uso: java ClienteTCP <server_ip> <port>");
             return;
         }
  
