@@ -32,9 +32,18 @@ public class ServerUDP {
                 // user registration
                 if(command.startsWith("/REG ")) {
                     String userName = command.substring(5).trim().split(" ")[0];
-                    userNames.put(clientSocketAddress, userName);
                     if(!clients.contains(clientSocketAddress)) {
+                        userNames.put(clientSocketAddress, userName);
                         clients.add(clientSocketAddress);
+                    }
+                    else {
+                        System.out.println("Usuário já registrado: " + userName + " (" + clientSocketAddress + ")");
+                        for(InetSocketAddress client : clients) {
+                            if(userNames.get(client).equals(userName)) {
+                                System.out.println(userName + " já está conectado.");
+                                break;
+                            }
+                        }
                     }
                     System.out.println("Usuário conectado: " + userName + " (" + clientSocketAddress + ")");
                     continue;
@@ -84,6 +93,17 @@ public class ServerUDP {
                             }
                         }
                     }
+                    continue;
+                }
+
+                if(command.startsWith("/FIM")) {
+                    if(userNames.containsKey(clientSocketAddress)) {
+                        String userName = userNames.get(clientSocketAddress);
+                        System.out.println("Usuário desconectado: " + userName + " (" + clientSocketAddress + ")");
+                        clients.remove(clientSocketAddress);
+                        userNames.remove(clientSocketAddress);
+                    }
+                    continue;
                 }
             }
         } catch(Exception e) {
