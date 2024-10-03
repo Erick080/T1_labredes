@@ -1,12 +1,12 @@
-import java.io.BufferedOutputStream;
-import java.io.FileOutputStream;
-import java.io.InputStream;
+import java.io.*;
 import java.net.*;
 import java.util.*;
 
 public class ServerUDP {
     private static List<InetSocketAddress> clients = new ArrayList<>();
     private static Map<InetSocketAddress, String> userNames = new HashMap<>();
+    private static final boolean DEBUG = true;
+    public static DatagramSocket socket;
 
     public static void main(String[] args) {
         if(args.length != 1) {
@@ -16,9 +16,11 @@ public class ServerUDP {
 
         int porta = Integer.parseInt(args[0]);
 
-        try(DatagramSocket socket = new DatagramSocket(porta)) {
+        try(DatagramSocket serverSocket = new DatagramSocket(porta)) {
+            socket = serverSocket;
+
             System.out.println("Servidor pronto na porta " + porta);
-            byte[] buffer = new byte[1024];
+            byte[] buffer = new byte[8192];
 
             while(true) {
                 DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
@@ -33,8 +35,18 @@ public class ServerUDP {
                 String command = new String(receivePacket.getData(), 0, receivePacket.getLength());
                 
                 // User registration
-                if(command.startsWith("/REG ")) {
+                if(command.startsWith("/REG")) {
+                    if(command.split(" ").length != 2) {
+                        sendTo("Comando inválido. Uso: /REG <nome_de_usuário>", clientSocketAddress);
+                        continue;
+                    }
+
                     String userName = command.substring(5).trim().split(" ")[0];
+
+                    if(userName.toLowerCase().trim().equals("all") || userName.trim().equals("")) {
+                        sendTo("Nome de usuário inválido", clientSocketAddress);
+                        continue;
+                    }
 
                     // Add the user if it's not already registered
                     if(!clients.contains(clientSocketAddress)) {
@@ -43,15 +55,12 @@ public class ServerUDP {
                     }
                     // If the user is already registered, print a message
                     else {
-                        System.out.println("Usuário já registrado: " + userName + " (" + clientSocketAddress + ")");
-                        for(InetSocketAddress client : clients) {
-                            if(userNames.get(client).equals(userName)) {
-                                System.out.println(userName + " já está conectado.");
-                                continue;
-                            }
-                        }
+                        sendTo("Já registrado como " + userName, clientSocketAddress);
+                        continue;
                     }
-                    System.out.println("Usuário conectado: " + userName + " (" + clientSocketAddress + ")");
+                    String msg = "Usuário conectado: " + userName + " (" + clientSocketAddress + ")";
+                    sendTo(msg, clientSocketAddress);
+                    System.out.println(msg);
                     continue;
                 }
 
@@ -72,103 +81,67 @@ public class ServerUDP {
                     String sender = userNames.get(clientSocketAddress);
                     String receiver = command.substring(5).trim().split(" ")[0];
                     String msg = sender + ": " + command.substring(5 + receiver.length()).trim();
-                    System.out.println(receiver + " <- " + msg);
+                    if (DEBUG) System.out.println(receiver + " <- " + msg);
 
                     // Send the message to all users
-                    if(receiver.toLowerCase().equals("all")) {
-                        for(InetSocketAddress client : clients) {
-                            if(!client.equals(clientSocketAddress)) {
-                                DatagramPacket sendPacket = new DatagramPacket(
-                                        msg.getBytes(),
-                                        msg.length(),
-                                        client.getAddress(),
-                                        client.getPort()
-                                );
-                                socket.send(sendPacket);
-                            }
-                        }
-                    }
-                    // Send the message to a specific user
-                    else {
-                        for(InetSocketAddress client : clients) {
-                            if(userNames.get(client).equals(receiver)) {
-                                DatagramPacket sendPacket = new DatagramPacket(
-                                        msg.getBytes(),
-                                        msg.length(),
-                                        client.getAddress(),
-                                        client.getPort()
-                                );
-                                socket.send(sendPacket);
-                                break;
-                            }
-                        }
-                    }
+                    if(receiver.toLowerCase().equals("all"))
+                        sendAll(msg, clientSocketAddress);
+                    else // Send the message to a specific user
+                        sendTo(msg, receiver);
                     continue;
                 }
 
                 // Send files
                 if (command.startsWith("/FILE ")) {
-                    if(command.substring(6).trim().split(" ").length < 2) {
-                        System.out.println("Comando inválido. Uso: /FILE <usuário> <arquivo>");
+                    // Size prevention on client side
+
+                    // Get sender and receiver
+                    String parts[] = command.substring(6).trim().split(" ");
+                    String sender = userNames.get(clientSocketAddress);
+                    String receiver = parts[0];
+                    InetSocketAddress receiverSocket = findUser(receiver);
+
+                    if(receiverSocket == null) {
+                        sendTo("Usuário não encontrado", clientSocketAddress);
                         continue;
                     }
 
-                    // Get sender, receiver and the file name
-                    String splitCommand[] = command.substring(6).trim().split(" ");
-                    String sender = userNames.get(clientSocketAddress);
-                    String receiver = splitCommand[0];
-                    int numChunks = Integer.parseInt(splitCommand[splitCommand.length - 1]);
-                    int infoSize = splitCommand[splitCommand.length - 1].length();
-                    String fileName = command.substring(6 + receiver.length(), command.length() - infoSize).trim();
-                    System.out.println(sender + " -> " + receiver + " - envio de arquivo: " + fileName);
+                    // Get the number of chunks and the file name
+                    int numChunks = Integer.parseInt(parts[parts.length - 1]);
+                    int fileNameEndIndex = command.length() - parts[parts.length - 1].length();
+                    String fileName = command.substring(6 + receiver.length(), fileNameEndIndex).trim();
+                    String msg = "Envio de arquivo: " + sender + " -> " + fileName;
+                    if (DEBUG) System.out.println(sender + " -> " + receiver + " - envio de arquivo: " + fileName);
 
-                    // Receive the file
-                    FileOutputStream streamNewFile = new FileOutputStream("arquivo_teste_recebido");
-                    // BufferedOutputStream bufferNewFile = new BufferedOutputStream(streamNewFile);
-
+                    // Receive and deliver the file
                     byte[] fileBuffer = new byte[8192]; // 8KB
                     DatagramPacket packet = new DatagramPacket(fileBuffer, fileBuffer.length);
 
+                    // Send the number of chunks to the receiver
+                    sendTo("[FILE] " + numChunks + " " + fileName + "(" + sender + ")", receiverSocket);
+
                     for (int i = 0; i < numChunks; i++) {
                         socket.receive(packet);
-                        String test = new String(packet.getData(), 0, packet.getLength());
-                        //System.out.println(test);
-                        streamNewFile.write(test.getBytes(), 0, test.getBytes().length * i);
-                        streamNewFile.flush();
+                        String filePart = new String(packet.getData(), 0, packet.getLength());
+                        
+                        if(receiver.toLowerCase().equals("all")) {
+                            sendTo(filePart, clientSocketAddress);
+                        }
+                        else {
+                            sendTo(filePart, receiver);
+                        }
                     }
-                    // bufferNewFile.close();
-                    streamNewFile.close();
 
-                    // Send the file to all users
-                    // if(receiver.toLowerCase().equals("all")) {
-                    //     for(InetSocketAddress client : clients) {
-                    //         if(!client.equals(clientSocketAddress)) {
-                    //             DatagramPacket sendPacket = new DatagramPacket(
-                    //                     command.getBytes(),
-                    //                     command.length(),
-                    //                     client.getAddress(),
-                    //                     client.getPort()
-                    //             );
-                    //             socket.send(sendPacket);
-                    //         }
-                    //     }
-                    // }
-                    // Send the file to a specific user
-                    // else {
-                    //     for(InetSocketAddress client : clients) {
-                    //         if(userNames.get(client).equals(receiver)) {
-
-
-
-                    //         }
-                    //     }
-                    // }
+                    sendTo(msg, receiverSocket);
                 }
 
+                // Disconnect
                 if(command.startsWith("/FIM")) {
                     if(userNames.containsKey(clientSocketAddress)) {
                         String userName = userNames.get(clientSocketAddress);
                         System.out.println("Usuário desconectado: " + userName + " (" + clientSocketAddress + ")");
+
+                        // Remove the user from the lists
                         clients.remove(clientSocketAddress);
                         userNames.remove(clientSocketAddress);
                     }
@@ -178,5 +151,41 @@ public class ServerUDP {
         } catch(Exception e) {
             e.printStackTrace();
         }
+    }
+
+    // Overcharge to send messages to a specific user without having its InetSocketAddress	
+    public static void sendTo(String msg, String receiver) throws IOException {
+        sendTo(msg, findUser(receiver));
+    }
+
+    // Send messages to a specific user
+    public static void sendTo(String msg, InetSocketAddress cliSocket) throws IOException {
+        byte[] buffer = msg.getBytes();
+        DatagramPacket sendPacket = new DatagramPacket(
+                buffer,
+                buffer.length,
+                cliSocket.getAddress(),
+                cliSocket.getPort()
+        );
+        socket.send(sendPacket);
+    }
+
+    // Send messages to all users
+    public static void sendAll(String msg, InetSocketAddress cliAddress) throws IOException {
+        for(InetSocketAddress client : clients) {
+            if(!client.equals(cliAddress)) {
+                sendTo(msg, client);
+            }
+        }
+    }
+
+    // Find a user by its username
+    public static InetSocketAddress findUser(String userName) {
+        for(InetSocketAddress client : clients) {
+            if(userNames.get(client).equals(userName)) {
+                return client;
+            }
+        }
+        return null;
     }
 }

@@ -15,15 +15,39 @@ public class ClienteUDP {
         try (DatagramSocket socket = new DatagramSocket()) {
             InetAddress serverAddress = InetAddress.getByName(strServerAddress);
 
-            // Thread para receber mensagens do servidor
+            // Thread for server messages handling
             new Thread(() -> {
                 try {
-                    byte[] buffer = new byte[1024];
+                    byte[] buffer = new byte[10240]; //10KB
                     while (true) {
                         DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
                         socket.receive(receivePacket);
                         String receiveMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
-                        System.out.println(receiveMessage);
+
+                        if(receiveMessage.startsWith("[FILE]")) {
+                            int numChunks = Integer.parseInt(receiveMessage.split(" ")[1]);
+                            String fileName = receiveMessage.split(" ")[2];
+                            int count = 0;
+
+                            try (FileOutputStream fos = new FileOutputStream(fileName)) {
+                                File file = new File(fileName);
+                                if (file.createNewFile())
+                                    System.out.println("File created: " + file.getName());
+                                else 
+                                    System.out.println("File already exists. Overwriting...");
+
+                                while (count < numChunks) {
+                                    receivePacket = new DatagramPacket(buffer, buffer.length);
+                                    socket.receive(receivePacket);
+                                    fos.write(receivePacket.getData(), 0, receivePacket.getLength());
+                                    count++;
+                                }
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        else
+                            System.out.println(receiveMessage);
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -35,8 +59,14 @@ public class ClienteUDP {
             while (true) {
                 String message = scanner.nextLine();
                 if(message.startsWith("/FILE ")) {
-                    String splitMessage[] = message.substring(6).trim().split(" ");
-                    String fileName = message.substring(6 + splitMessage[0].length()).trim();
+
+                    if(message.split(" ").length < 3) {
+                        System.out.println("Comando inválido. Uso: /FILE <destinatário> <caminho do arquivo>");
+                        continue;
+                    }
+
+                    String parts[] = message.substring(6).trim().split(" ");
+                    String fileName = message.substring(6 + parts[0].length()).trim();
                     File file = new File(fileName);
 
                     if(!file.exists()) {
@@ -70,10 +100,11 @@ public class ClienteUDP {
                     bufferReadFile.close();
                     System.out.println("File sent successfully.");
                 }
-
-                byte[] buffer = message.getBytes();
-                DatagramPacket sendPacket = new DatagramPacket(buffer, buffer.length, serverAddress, serverPort);
-                socket.send(sendPacket);
+                else {
+                    byte[] buffer = message.getBytes();
+                    DatagramPacket sendPacket = new DatagramPacket(buffer, buffer.length, serverAddress, serverPort);
+                    socket.send(sendPacket);
+                }
 
                 if(message.trim().equals("/FIM")) {
                     System.out.println("Encerrando.");
