@@ -44,17 +44,20 @@ public class ServerTCP {
             
         }
 
-        public void send_file(Socket destino, String nome_arquivo) throws IOException{
-            FileOutputStream stream_arquivo_criado = new FileOutputStream("arquivo_teste_recebido");
+        public void send_file(Socket destino, String nome_arquivo) throws IOException, InterruptedException{
             InputStream stream_bytes_recebidos = socket_cliente.getInputStream(); //pode dar ruim
-            //stream_bytes_recebidos.read();
             byte[] bytes = new byte[8192];
-            int count;
-            //while ((count = stream_bytes_recebidos.read(bytes)) > 0) {
-                count = stream_bytes_recebidos.read(bytes);
-                stream_arquivo_criado.write(bytes, 0, count);
-            //}
-            stream_arquivo_criado.close();
+
+            int count = stream_bytes_recebidos.read(bytes);
+
+            send_message(destino, "[FILE] " + count , true); // avisa destinatario para se preparar para ler bytes do arquivo
+
+            Thread.sleep(250); // espera cliente se preparar para ler arquivo
+            
+            OutputStream output;
+            output = destino.getOutputStream();
+            output.write(bytes);
+
             // avisa destinatario que recebeu arquivo
             String message = "enviou um arquivo: " + nome_arquivo;
             send_message(destino, message, false); 
@@ -89,6 +92,7 @@ public class ServerTCP {
                         String path = line.split(" ")[1];
                         String destinatario = line.split(" ")[2];
                         Socket destinatario_socket = get_user_socket(destinatario);
+                      
                         send_file(destinatario_socket, path);
                     }
                     else if(line.startsWith("/QUIT")){
@@ -101,7 +105,7 @@ public class ServerTCP {
                         send_message(socket_cliente, "Comando invalido!", true);
                     }
                 }      
-            } catch (IOException e) {
+            } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
             }
         }

@@ -23,10 +23,23 @@ public class ClienteTCP {
                 try {
                     String resposta;
                     while ((resposta = in.readLine()) != null) {
-                        System.out.println(resposta);
-                        if (resposta.startsWith("[SERVER]: Ate a proxima,")){
-                            System.exit(1);
+                        if (resposta.startsWith("[SERVER]: [FILE]")){
+                           // se prepara para criar arquivo recebido
+                           FileOutputStream stream_arquivo_criado = new FileOutputStream("arquivo_teste_recebido");
+                           InputStream stream_bytes_recebidos = socket.getInputStream();
+                           int count = Integer.parseInt(resposta.split(" ")[2]);
+                           byte[] bytes = new byte[count];
+                           count = stream_bytes_recebidos.read(bytes, 0, count);
+                           stream_arquivo_criado.write(bytes, 0, count);
+                           stream_arquivo_criado.close();
                         }
+                        else{
+                            System.out.println(resposta);
+                            if (resposta.startsWith("[SERVER]: Ate a proxima,")){
+                                System.exit(1);
+                            }
+                        }
+                        
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -48,7 +61,6 @@ public class ClienteTCP {
                     while ((count = stream_arquivo.read(bytes)) > 0) {
                         output.write(bytes, 0, count);
                     }
-                    System.out.println("saiu");
                     stream_arquivo.close();
                 }
                 else
