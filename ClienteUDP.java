@@ -98,7 +98,7 @@ public class ClienteUDP {
                     }
                     streamReadFile.close();
                     bufferReadFile.close();
-                    System.out.println("File sent successfully.");
+                    System.out.println("File sent to server.");
                 }
                 else {
                     byte[] buffer = message.getBytes();

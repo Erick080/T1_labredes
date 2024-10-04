@@ -99,17 +99,25 @@ public class ServerUDP {
                     String parts[] = command.substring(6).trim().split(" ");
                     String sender = userNames.get(clientSocketAddress);
                     String receiver = parts[0];
-                    InetSocketAddress receiverSocket = findUser(receiver);
+                    InetSocketAddress receiverSocket = null;
 
-                    if(receiverSocket == null) {
-                        sendTo("Usuário não encontrado", clientSocketAddress);
+                    if(receiver.toLowerCase().equals("all")) {
+                        sendTo("Não é possível enviar arquivos para todos os usuários", clientSocketAddress);
                         continue;
+                    }
+                    else {
+                        receiverSocket = findUser(receiver);
+                        if(receiverSocket == null) {
+                            sendTo("Usuário não encontrado", clientSocketAddress);
+                            continue;
+                        }
                     }
 
                     // Get the number of chunks and the file name
                     int numChunks = Integer.parseInt(parts[parts.length - 1]);
                     int fileNameEndIndex = command.length() - parts[parts.length - 1].length();
                     String fileName = command.substring(6 + receiver.length(), fileNameEndIndex).trim();
+                    String fileType = fileName.substring(fileName.lastIndexOf("."));
                     String msg = "Envio de arquivo: " + sender + " -> " + fileName;
                     if (DEBUG) System.out.println(sender + " -> " + receiver + " - envio de arquivo: " + fileName);
 
@@ -118,14 +126,17 @@ public class ServerUDP {
                     DatagramPacket packet = new DatagramPacket(fileBuffer, fileBuffer.length);
 
                     // Send the number of chunks to the receiver
-                    sendTo("[FILE] " + numChunks + " " + fileName + "(" + sender + ")", receiverSocket);
+                    if(receiver.toLowerCase().equals("all"))
+                        sendAll("[FILE] " + numChunks + " " + "(" + sender + ")" + fileName, clientSocketAddress);
+                    else
+                        sendTo("[FILE] " + numChunks + " " + "(" + sender + ")" + fileName, receiverSocket);
 
                     for (int i = 0; i < numChunks; i++) {
                         socket.receive(packet);
                         String filePart = new String(packet.getData(), 0, packet.getLength());
                         
                         if(receiver.toLowerCase().equals("all")) {
-                            sendTo(filePart, clientSocketAddress);
+                            sendAll(filePart, clientSocketAddress);
                         }
                         else {
                             sendTo(filePart, receiver);
@@ -154,12 +165,16 @@ public class ServerUDP {
     }
 
     // Overcharge to send messages to a specific user without having its InetSocketAddress	
-    public static void sendTo(String msg, String receiver) throws IOException {
-        sendTo(msg, findUser(receiver));
+    public static void sendTo(String msg, String receiverName) throws IOException {
+        sendTo(msg, findUser(receiverName));
     }
 
     // Send messages to a specific user
     public static void sendTo(String msg, InetSocketAddress cliSocket) throws IOException {
+        if(cliSocket == null) {
+            System.out.println("Usuário não encontrado");
+            return;
+        }
         byte[] buffer = msg.getBytes();
         DatagramPacket sendPacket = new DatagramPacket(
                 buffer,
