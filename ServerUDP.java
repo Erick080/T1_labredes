@@ -93,7 +93,7 @@ public class ServerUDP {
 
                 // Send files
                 if (command.startsWith("/FILE ")) {
-                    // Size prevention on client side
+                    // Args length preventions on client side
 
                     // Get sender and receiver
                     String parts[] = command.substring(6).trim().split(" ");
@@ -101,11 +101,7 @@ public class ServerUDP {
                     String receiver = parts[0];
                     InetSocketAddress receiverSocket = null;
 
-                    if(receiver.toLowerCase().equals("all")) {
-                        sendTo("Não é possível enviar arquivos para todos os usuários", clientSocketAddress);
-                        continue;
-                    }
-                    else {
+                    if(!receiver.toLowerCase().equals("all")) {
                         receiverSocket = findUser(receiver);
                         if(receiverSocket == null) {
                             sendTo("Usuário não encontrado", clientSocketAddress);
@@ -117,23 +113,32 @@ public class ServerUDP {
                     int numChunks = Integer.parseInt(parts[parts.length - 1]);
                     int fileNameEndIndex = command.length() - parts[parts.length - 1].length();
                     String fileName = command.substring(6 + receiver.length(), fileNameEndIndex).trim();
-                    String fileType = fileName.substring(fileName.lastIndexOf("."));
                     String msg = "Envio de arquivo: " + sender + " -> " + fileName;
-                    if (DEBUG) System.out.println(sender + " -> " + receiver + " - envio de arquivo: " + fileName);
 
                     // Receive and deliver the file
-                    byte[] fileBuffer = new byte[8192]; // 8KB
+                    byte[] fileBuffer = new byte[8]; // 8KB
                     DatagramPacket packet = new DatagramPacket(fileBuffer, fileBuffer.length);
 
                     // Send the number of chunks to the receiver
-                    if(receiver.toLowerCase().equals("all"))
-                        sendAll("[FILE] " + numChunks + " " + "(" + sender + ")" + fileName, clientSocketAddress);
-                    else
-                        sendTo("[FILE] " + numChunks + " " + "(" + sender + ")" + fileName, receiverSocket);
+                    if(receiver.toLowerCase().equals("all")) {
+                        // for(InetSocketAddress client : clients) {
+                        //     if(!client.equals(clientSocketAddress) && userNames.containsKey(client)) {
+                        //         if (DEBUG) System.out.println(sender + " -> " + userNames.get(client) + " - envio de arquivo: " + fileName);
+                        //         sendTo("[FILE] " + numChunks + " " + sender + "-" + fileName, clientSocketAddress);
+                        //     }
+                        // }
+                        sendAll("[FILE] " + numChunks + " " + sender + "-" + fileName, clientSocketAddress);
+                    }
+                    else {
+                        if (DEBUG) System.out.println(sender + " -> " + receiver + " - envio de arquivo: " + fileName);
+                        sendTo("[FILE] " + numChunks + " " + sender + "-" + fileName, receiverSocket);
+                    }
 
                     for (int i = 0; i < numChunks; i++) {
                         socket.receive(packet);
                         String filePart = new String(packet.getData(), 0, packet.getLength());
+
+                        System.out.printf("enviando pacote %d p/ " + receiver + "\n", (i+1));
                         
                         if(receiver.toLowerCase().equals("all")) {
                             sendAll(filePart, clientSocketAddress);
@@ -188,7 +193,7 @@ public class ServerUDP {
     // Send messages to all users
     public static void sendAll(String msg, InetSocketAddress cliAddress) throws IOException {
         for(InetSocketAddress client : clients) {
-            if(!client.equals(cliAddress)) {
+            if((!client.equals(cliAddress)) && userNames.containsKey(client)) {
                 sendTo(msg, client);
             }
         }

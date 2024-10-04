@@ -18,23 +18,28 @@ public class ClienteUDP {
             // Thread for server messages handling
             new Thread(() -> {
                 try {
-                    byte[] buffer = new byte[10240]; //10KB
+                    byte[] buffer = new byte[8192]; //8KB
                     while (true) {
                         DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
                         socket.receive(receivePacket);
                         String receiveMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
 
                         if(receiveMessage.startsWith("[FILE]")) {
-                            int numChunks = Integer.parseInt(receiveMessage.split(" ")[1]);
-                            String fileName = receiveMessage.split(" ")[2];
+                            String[] parts = receiveMessage.split(" ");
+                            int numChunks = Integer.parseInt(parts[1]);
+                            String fileName = receiveMessage.substring(7 + parts[1].length()).trim();
                             int count = 0;
 
-                            try (FileOutputStream fos = new FileOutputStream(fileName)) {
+                            try {
                                 File file = new File(fileName);
-                                if (file.createNewFile())
+                                if (file.createNewFile()) {
                                     System.out.println("File created: " + file.getName());
-                                else 
+                                }
+                                else {
                                     System.out.println("File already exists. Overwriting...");
+                                }
+                                
+                                FileOutputStream fos = new FileOutputStream(fileName);
 
                                 while (count < numChunks) {
                                     receivePacket = new DatagramPacket(buffer, buffer.length);
@@ -42,6 +47,7 @@ public class ClienteUDP {
                                     fos.write(receivePacket.getData(), 0, receivePacket.getLength());
                                     count++;
                                 }
+                                fos.close();
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
@@ -79,7 +85,7 @@ public class ClienteUDP {
                     BufferedInputStream bufferReadFile = new BufferedInputStream(streamReadFile);
                     bufferReadFile.read(fileBytes, 0, fileBytes.length);
 
-                    int chunkSize = 8192; // 8KB
+                    int chunkSize = 8; // 8KB
                     int numChunks = (int) Math.ceil(fileBytes.length / (double) chunkSize); 
 
                     message = message + " " + numChunks;
@@ -95,6 +101,8 @@ public class ClienteUDP {
         
                         DatagramPacket packet = new DatagramPacket(chunk, chunk.length, serverAddress, serverPort);
                         socket.send(packet);
+
+                        System.out.printf("enviando pacote %d p/ servidor\n", (i+1));
                     }
                     streamReadFile.close();
                     bufferReadFile.close();
@@ -110,7 +118,7 @@ public class ClienteUDP {
                     System.out.println("Encerrando.");
                     socket.close();
                     scanner.close();
-                    break;
+                    return;
                 }
             }
         } catch (Exception e) {
