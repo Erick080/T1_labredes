@@ -116,18 +116,20 @@ public class ServerUDP {
                     String msg = "Envio de arquivo: " + sender + " -> " + fileName;
 
                     // Receive and deliver the file
-                    byte[] fileBuffer = new byte[8]; // 8KB
+                    byte[] fileBuffer = new byte[400]; // 400B
                     DatagramPacket packet = new DatagramPacket(fileBuffer, fileBuffer.length);
 
                     // Send the number of chunks to the receiver
                     if(receiver.toLowerCase().equals("all")) {
+                        //atualmente quebrado
+                        continue;
+
                         // for(InetSocketAddress client : clients) {
                         //     if(!client.equals(clientSocketAddress) && userNames.containsKey(client)) {
                         //         if (DEBUG) System.out.println(sender + " -> " + userNames.get(client) + " - envio de arquivo: " + fileName);
                         //         sendTo("[FILE] " + numChunks + " " + sender + "-" + fileName, clientSocketAddress);
                         //     }
                         // }
-                        sendAll("[FILE] " + numChunks + " " + sender + "-" + fileName, clientSocketAddress);
                     }
                     else {
                         if (DEBUG) System.out.println(sender + " -> " + receiver + " - envio de arquivo: " + fileName);

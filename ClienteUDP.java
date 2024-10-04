@@ -18,7 +18,7 @@ public class ClienteUDP {
             // Thread for server messages handling
             new Thread(() -> {
                 try {
-                    byte[] buffer = new byte[8192]; //8KB
+                    byte[] buffer = new byte[400]; //400B
                     while (true) {
                         DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
                         socket.receive(receivePacket);
@@ -85,7 +85,7 @@ public class ClienteUDP {
                     BufferedInputStream bufferReadFile = new BufferedInputStream(streamReadFile);
                     bufferReadFile.read(fileBytes, 0, fileBytes.length);
 
-                    int chunkSize = 8; // 8KB
+                    int chunkSize = 400; // 400B
                     int numChunks = (int) Math.ceil(fileBytes.length / (double) chunkSize); 
 
                     message = message + " " + numChunks;
