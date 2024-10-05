@@ -28,10 +28,14 @@ public class ClienteTCP {
                            // se prepara para criar arquivo recebido
                            FileOutputStream stream_arquivo_criado = new FileOutputStream("arquivo_teste_recebido-" + resposta.split(" ")[0] + count_arquivos_recebidos++);
                            InputStream stream_bytes_recebidos = socket.getInputStream();
-                           int count = Integer.parseInt(resposta.split(" ")[2]);
-                           byte[] bytes = new byte[count];
-                           count = stream_bytes_recebidos.read(bytes, 0, count);
-                           stream_arquivo_criado.write(bytes, 0, count);
+                           int tamanho_arquivo = Integer.parseInt(resposta.split(" ")[2]);
+                           byte[] bytes = new byte[tamanho_arquivo];
+                           int bytes_lidos = 0;
+                           while (bytes_lidos < tamanho_arquivo){
+                              bytes_lidos += stream_bytes_recebidos.read(bytes, bytes_lidos, 400); // 400 eh o limite de bytes por leitura
+                              stream_arquivo_criado.write(bytes, bytes_lidos-400, 400);
+                           }
+                           
                            stream_arquivo_criado.close();
                         }
                         else{

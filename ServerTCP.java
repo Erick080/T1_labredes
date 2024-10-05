@@ -56,8 +56,13 @@ public class ServerTCP {
             
             OutputStream output;
             output = destino.getOutputStream();
-            output.write(bytes);
-
+            
+            // envia pacotes de 400 bytes
+            for (int index = 0; index < count; index+=400) {
+                output.write(bytes,index,400);
+                Thread.sleep(100);  
+            }
+            
             // avisa destinatario que recebeu arquivo
             String message = "enviou um arquivo: " + nome_arquivo;
             send_message(destino, message, false); 
