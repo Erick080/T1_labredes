@@ -22,10 +22,11 @@ public class ClienteTCP {
             new Thread(() -> {
                 try {
                     String resposta;
+                    int count_arquivos_recebidos = 0;
                     while ((resposta = in.readLine()) != null) {
-                        if (resposta.startsWith("[SERVER]: [FILE]")){
+                        if (resposta.split(" ")[1].startsWith("[FILE]")){
                            // se prepara para criar arquivo recebido
-                           FileOutputStream stream_arquivo_criado = new FileOutputStream("arquivo_teste_recebido");
+                           FileOutputStream stream_arquivo_criado = new FileOutputStream("arquivo_teste_recebido-" + resposta.split(" ")[0] + count_arquivos_recebidos++);
                            InputStream stream_bytes_recebidos = socket.getInputStream();
                            int count = Integer.parseInt(resposta.split(" ")[2]);
                            byte[] bytes = new byte[count];

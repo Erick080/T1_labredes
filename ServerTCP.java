@@ -50,7 +50,7 @@ public class ServerTCP {
 
             int count = stream_bytes_recebidos.read(bytes);
 
-            send_message(destino, "[FILE] " + count , true); // avisa destinatario para se preparar para ler bytes do arquivo
+            send_message(destino, "[FILE] " + count , false); // avisa destinatario para se preparar para ler bytes do arquivo
 
             Thread.sleep(250); // espera cliente se preparar para ler arquivo
             
@@ -64,7 +64,7 @@ public class ServerTCP {
         }
 
         public void run(){
-            System.out.println("New client connected: " + socket_cliente.getRemoteSocketAddress());
+            System.out.println("New client connected: " + socket_cliente.getRemoteSocketAddress()); 
             try {
                 while (true){
                     String line = in.readLine();
