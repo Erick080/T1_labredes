@@ -56,7 +56,7 @@ public class ServerTCP {
             
             OutputStream output;
             output = destino.getOutputStream();
-            
+
             // envia pacotes de 400 bytes
             for (int index = 0; index < count; index+=400) {
                 output.write(bytes,index,400);
@@ -104,7 +104,6 @@ public class ServerTCP {
                         System.out.println("Desconectando " + nickname);
                         send_message(socket_cliente, "Ate a proxima, " + nickname, true);
                         break;
-                        // destruir thread apos encerramento da conexao do cliente?
                     }
                     else{
                         send_message(socket_cliente, "Comando invalido!", true);
@@ -131,8 +130,7 @@ public class ServerTCP {
                 conexao = new ConnThread(cliente);
                 conexao.start();
                 lista_threads_clientes.add(conexao);
-            }
-            
+            }          
         }
     }
     

@@ -15,10 +15,10 @@ public class ClienteUDP {
         try (DatagramSocket socket = new DatagramSocket()) {
             InetAddress serverAddress = InetAddress.getByName(strServerAddress);
 
-            // Thread for server messages handling
+            // Escuta msgs do servidor
             new Thread(() -> {
                 try {
-                    byte[] buffer = new byte[400]; //400B
+                    byte[] buffer = new byte[400];
                     while (true) {
                         DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
                         socket.receive(receivePacket);
